@@ -3,7 +3,7 @@
     "name": "ProyectoPrograRecu",
     "slug": "ProyectoPrograRecu",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "proyectoprograrecu",
     "userInterfaceStyle": "automatic",
@@ -20,6 +20,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
