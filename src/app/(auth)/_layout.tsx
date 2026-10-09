@@ -6,13 +6,16 @@ import {
   View,
 } from 'react-native';
 
-import { Redirect } from 'expo-router';
+import {
+  Redirect,
+  Slot,
+} from 'expo-router';
 
 import {
   useAuth,
-} from '../features/auth/hooks/use-auth';
+} from '../../features/auth/hooks/use-auth';
 
-export default function Index() {
+export default function AuthLayout() {
   const { session, loading } = useAuth();
 
   if (loading) {
@@ -20,8 +23,8 @@ export default function Index() {
       <View
         style={{
           flex: 1,
-          alignItems: 'center',
           justifyContent: 'center',
+          alignItems: 'center',
         }}
       >
         <ActivityIndicator size="large" />
@@ -29,9 +32,9 @@ export default function Index() {
     );
   }
 
-  if (!session) {
-    return <Redirect href="/login" />;
+  if (session) {
+    return <Redirect href="/inicio" />;
   }
 
-  return <Redirect href="/inicio" />;
+  return <Slot />;
 }

@@ -17,24 +17,96 @@ import {
 } from 'expo-router';
 
 import { colors } from '../../constants/theme';
-import { useResponsive } from '../../hooks/use-responsive';
+
+import {
+  useResponsive,
+} from '../../hooks/use-responsive';
+
+import {
+  useAuth,
+} from '../../features/auth/hooks/use-auth';
+
+// ======================================================
+// ENCABEZADO GENERAL SCCVI
+// ======================================================
 
 export function AppHeader() {
+
+  // ====================================================
+  // CONFIGURACIÓN RESPONSIVA
+  // ====================================================
+
   const { isMobile } = useResponsive();
+
+  // ====================================================
+  // AUTENTICACIÓN
+  // ====================================================
+
+  const {
+    session,
+    signOut,
+  } = useAuth();
+
+  const usuario = session?.usuario;
+
+  // ====================================================
+  // INFORMACIÓN DEL USUARIO
+  // ====================================================
+
+  const nombreCompleto = [
+    usuario?.nombres,
+    usuario?.apellidos,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const nombreVisible =
+    nombreCompleto ||
+    usuario?.nombre_usuario ||
+    'Personal de salud';
+
+  const rolesVisibles =
+    usuario?.roles?.join(', ') ||
+    'Sin roles';
+
+  // ====================================================
+  // BUSCADOR GENERAL
+  // ====================================================
 
   const [search, setSearch] = useState('');
 
   const handleSearch = () => {
+
     const query = search.trim();
 
-    if (!query) return;
+    if (!query) {
+      return;
+    }
 
-    // Búsqueda inicial dirigida al módulo de niños.
     router.push({
       pathname: '/ninos',
-      params: { q: query },
+      params: {
+        q: query,
+      },
     } as Href);
   };
+
+  // ====================================================
+  // CERRAR SESIÓN
+  // ====================================================
+
+  const handleLogout = async () => {
+
+    await signOut();
+
+    // El layout protegido detectará que la sesión
+    // se cerró y redirigirá al Login.
+  };
+
+  // ====================================================
+  // INTERFAZ
+  // ====================================================
 
   return (
     <View
@@ -46,10 +118,16 @@ export function AppHeader() {
       ]}
     >
 
-      {/* Fila superior */}
+      {/* ============================================= */}
+      {/* FILA SUPERIOR                                */}
+      {/* ============================================= */}
+
       <View style={styles.topRow}>
 
+        {/* Nombre del sistema */}
+
         <View style={styles.titleContainer}>
+
           <Text
             numberOfLines={isMobile ? 1 : 2}
             style={[
@@ -61,17 +139,25 @@ export function AppHeader() {
               ? 'SCCVI'
               : 'Sistema de Control de Crecimiento y Vacunación Infantil'}
           </Text>
+
         </View>
+
+        {/* =========================================== */}
+        {/* ACCIONES SUPERIORES                         */}
+        {/* =========================================== */}
 
         <View style={styles.actions}>
 
-          {/* Notificaciones */}
+          {/* NOTIFICACIONES */}
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Ver alertas"
-            onPress={() => router.navigate('/alertas')}
+            onPress={() =>
+              router.navigate('/alertas')
+            }
             style={({ pressed }) => [
-              styles.notificationButton,
+              styles.actionButton,
               pressed && styles.pressed,
             ]}
           >
@@ -82,7 +168,8 @@ export function AppHeader() {
             />
           </Pressable>
 
-          {/* Identificación del usuario */}
+          {/* INFORMACIÓN DEL USUARIO */}
+
           <View style={styles.userContainer}>
 
             <View style={styles.avatar}>
@@ -95,63 +182,61 @@ export function AppHeader() {
 
             {!isMobile && (
               <View style={styles.userInformation}>
-                <Text style={styles.userName}>
-                  Personal de salud
+
+                <Text
+                  numberOfLines={1}
+                  style={styles.userName}
+                >
+                  {nombreVisible}
                 </Text>
 
-                <Text style={styles.userRole}>
-                  Vista preliminar
+                <Text
+                  numberOfLines={1}
+                  style={styles.userRole}
+                >
+                  {rolesVisibles}
                 </Text>
+
               </View>
             )}
 
           </View>
 
-        </View>
-      </View>
+          {/* CERRAR SESIÓN */}
 
-      {/* Buscador general */}
-      <View style={styles.searchContainer}>
-
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color={colors.muted}
-        />
-
-        <TextInput
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder={
-            isMobile
-              ? 'Buscar niño o responsable...'
-              : 'Buscar niño por nombre, código o responsable...'
-          }
-          placeholderTextColor={colors.muted}
-          returnKeyType="search"
-          onSubmitEditing={handleSearch}
-        />
-
-        {search.length > 0 && (
           <Pressable
-            accessibilityLabel="Limpiar búsqueda"
-            onPress={() => setSearch('')}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar sesión"
+            onPress={() => {
+              void handleLogout();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.logoutButton,
+              pressed && styles.pressed,
+            ]}
           >
             <Ionicons
-              name="close-circle"
-              size={19}
-              color={colors.muted}
+              name="log-out-outline"
+              size={22}
+              color={colors.danger}
             />
           </Pressable>
-        )}
+
+        </View>
+
       </View>
 
     </View>
   );
 }
 
+// ======================================================
+// ESTILOS
+// ======================================================
+
 const styles = StyleSheet.create({
+
   container: {
     backgroundColor: colors.surface,
     paddingTop: 12,
@@ -160,6 +245,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     gap: 12,
   },
+
+  // ====================================================
+  // FILA SUPERIOR
+  // ====================================================
 
   topRow: {
     flexDirection: 'row',
@@ -184,13 +273,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 
+  // ====================================================
+  // ACCIONES
+  // ====================================================
+
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
 
-  notificationButton: {
+  actionButton: {
     width: 42,
     height: 42,
     alignItems: 'center',
@@ -198,6 +291,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F7FB',
     borderRadius: 11,
   },
+
+  logoutButton: {
+    backgroundColor: colors.dangerLight,
+  },
+
+  pressed: {
+    opacity: 0.65,
+  },
+
+  // ====================================================
+  // USUARIO
+  // ====================================================
 
   userContainer: {
     flexDirection: 'row',
@@ -222,6 +327,7 @@ const styles = StyleSheet.create({
   userInformation: {
     paddingRight: 12,
     gap: 2,
+    maxWidth: 190,
   },
 
   userName: {
@@ -234,6 +340,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.muted,
   },
+
+  // ====================================================
+  // BUSCADOR
+  // ====================================================
 
   searchContainer: {
     flexDirection: 'row',
@@ -255,7 +365,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
 
-  pressed: {
-    opacity: 0.7,
+  searchButton: {
+    width: 28,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+
 });

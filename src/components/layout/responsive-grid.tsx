@@ -1,18 +1,90 @@
-import React, { ReactNode } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useResponsive } from '../../hooks/use-responsive';
 
-type Props = { children: ReactNode; maxColumns?: 2 | 3 | 4 };
-export function ResponsiveGrid({ children, maxColumns = 4 }: Props) {
-  const { width } = useResponsive();
-  const columns = width >= 1280 ? maxColumns : width >= 700 ? Math.min(maxColumns, 2) : 1;
-  const itemWidth = columns === 4 ? '23.5%' : columns === 3 ? '31.5%' : columns === 2 ? '48.5%' : '100%';
+import React, { ReactNode, useState } from 'react';
+
+import {
+  View,
+  StyleSheet,
+  LayoutChangeEvent,
+} from 'react-native';
+
+type ResponsiveGridProps = {
+  children: ReactNode;
+  maxColumns?: 1 | 2 | 3 | 4;
+  minItemWidth?: number;
+  gap?: number;
+};
+
+export function ResponsiveGrid({
+  children,
+  maxColumns = 4,
+  minItemWidth = 210,
+  gap = 12,
+}: ResponsiveGridProps) {
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  const onLayout = (event: LayoutChangeEvent) => {
+    const nextWidth = event.nativeEvent.layout.width;
+
+    if (Math.abs(nextWidth - containerWidth) > 1) {
+      setContainerWidth(nextWidth);
+    }
+  };
+
+  const breakpointColumns =
+    containerWidth >= 920
+      ? maxColumns
+      : containerWidth >= 580
+        ? Math.min(maxColumns, 2)
+        : 1;
+
+  const fittingColumns =
+    containerWidth > 0
+      ? Math.max(
+          1,
+          Math.floor(
+            (containerWidth + gap) / (minItemWidth + gap)
+          )
+        )
+      : 1;
+
+  const columns = Math.min(
+    breakpointColumns,
+    fittingColumns
+  );
+
+  const itemWidth =
+    containerWidth > 0
+      ? Math.max(
+          0,
+          (containerWidth - gap * (columns - 1)) / columns
+        )
+      : undefined;
+
   return (
-    <View style={styles.grid}>
-      {React.Children.map(children, (child, i) => (
-        <View key={i} style={{ width: itemWidth as `${number}%` }}>{child}</View>
+    <View
+      onLayout={onLayout}
+      style={[styles.container, { gap }]}
+    >
+      {React.Children.toArray(children).map((child, index) => (
+        <View
+          key={index}
+          style={{
+            width: itemWidth ?? '100%',
+            minWidth: 0,
+          }}
+        >
+          {child}
+        </View>
       ))}
     </View>
   );
 }
-const styles = StyleSheet.create({ grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 } });
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'stretch',
+  },
+});
