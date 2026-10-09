@@ -1,5 +1,3 @@
-import { NinoForm } from '@/components/ninos/nino-form';
-
-export default function NuevoNinoScreen() {
-  return <NinoForm title="Agregar nuevo niño" submitLabel="Guardar niño" />;
-}
+import React from 'react';
+import { NinoForm } from '../../../features/ninos/components/nino-form';
+export default function NuevoNino() { return <NinoForm />; }

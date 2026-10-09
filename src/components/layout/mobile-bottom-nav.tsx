@@ -1,38 +1,120 @@
-import { Link, usePathname } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Brand } from '@/constants/brand';
-import { isNavActive, MOBILE_NAV } from '@/constants/staff-nav';
+import React from 'react';
+
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
+
+import Ionicons from '@expo/vector-icons/Ionicons';
+
+import {
+  Href,
+  router,
+  usePathname,
+} from 'expo-router';
+
+import { BOTTOM_NAV } from '../../constants/navigation';
+import { NAV_ICONS } from '../../constants/nav-icons';
+import { colors } from '../../constants/theme';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const insets = useSafeAreaInsets();
+
+  const knownRoute = BOTTOM_NAV.some(
+    (item) =>
+      item.href !== '/menu' &&
+      (
+        pathname === item.href ||
+        pathname.startsWith(item.href + '/')
+      )
+  );
 
   return (
-    <View
-      className="flex-row border-t border-slate-200 bg-white px-1 pt-1"
-      style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
-      {MOBILE_NAV.map((item) => {
-        const active = isNavActive(pathname, String(item.href));
-        const Icon = item.icon;
-        const color = active ? Brand.petroleum : Brand.textMuted;
+    <View style={styles.container}>
+
+      {BOTTOM_NAV.map((item) => {
+        const active =
+          pathname === item.href ||
+          pathname.startsWith(item.href + '/') ||
+          (item.href === '/menu' && !knownRoute);
 
         return (
-          <Link key={String(item.href)} href={item.href} asChild>
-            <Pressable className="flex-1 items-center py-2" accessibilityState={{ selected: active }}>
-              <Icon size={22} color={color} strokeWidth={active ? 2.4 : 2} />
-              <Text
-                className={`mt-1 text-xs ${
-                  active ? 'font-semibold text-petroleum' : 'font-medium text-slate-500'
-                }`}
-                numberOfLines={1}>
-                {item.label}
-              </Text>
-            </Pressable>
-          </Link>
+          <Pressable
+            key={item.href}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected: active }}
+            onPress={() =>
+              router.navigate(item.href as Href)
+            }
+            style={({ pressed }) => [
+              styles.item,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name={
+                NAV_ICONS[item.href] ??
+                'ellipse-outline'
+              }
+              size={22}
+              color={
+                active ? colors.primary : colors.muted
+              }
+            />
+
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.label,
+                active && styles.activeLabel,
+              ]}
+            >
+              {item.label}
+            </Text>
+          </Pressable>
         );
       })}
+
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    minHeight: 65,
+    justifyContent: 'space-around',
+    paddingVertical: 6,
+  },
+
+  item: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 2,
+  },
+
+  label: {
+    fontSize: 10,
+    color: colors.muted,
+    textAlign: 'center',
+  },
+
+  activeLabel: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
+
+  pressed: {
+    opacity: 0.65,
+  },
+});

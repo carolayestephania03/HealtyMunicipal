@@ -1,10 +1,5 @@
-import { ModulePlaceholder } from '@/components/layout/module-placeholder';
-
-export default function PadresScreen() {
-  return (
-    <ModulePlaceholder
-      title="Padres y familias"
-      description="Datos de contacto y responsables de los niños."
-    />
-  );
+import React from 'react';
+import { ModulePlaceholder } from '../../components/common/module-placeholder';
+export default function Pantalla() {
+  return <ModulePlaceholder title='Padres y familias' description='Búsqueda y gestión de tutores, familias y niños asociados.' />;
 }

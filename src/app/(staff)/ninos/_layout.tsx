@@ -1,5 +1,3 @@
+import React from 'react';
 import { Stack } from 'expo-router';
-
-export default function NinosLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
-}
+export default function NinosLayout() { return <Stack screenOptions={{ headerShown: false }} />; }

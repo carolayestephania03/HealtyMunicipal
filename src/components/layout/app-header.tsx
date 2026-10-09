@@ -1,73 +1,225 @@
-import { Bell, Menu, Search, UserRound } from 'lucide-react-native';
-import { Pressable, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Brand } from '@/constants/brand';
+import React, { useState } from 'react';
 
-type AppHeaderProps = {
-  compact: boolean;
-  onMenuPress: () => void;
-};
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
 
-export function AppHeader({ compact, onMenuPress }: AppHeaderProps) {
-  const insets = useSafeAreaInsets();
+import Ionicons from '@expo/vector-icons/Ionicons';
+
+import {
+  Href,
+  router,
+} from 'expo-router';
+
+import { colors } from '../../constants/theme';
+import { useResponsive } from '../../hooks/use-responsive';
+
+export function AppHeader() {
+  const { isMobile } = useResponsive();
+
+  const [search, setSearch] = useState('');
+
+  const handleSearch = () => {
+    const query = search.trim();
+
+    if (!query) return;
+
+    // Búsqueda inicial dirigida al módulo de niños.
+    router.push({
+      pathname: '/ninos',
+      params: { q: query },
+    } as Href);
+  };
 
   return (
     <View
-      className="border-b border-slate-200 bg-white px-4 pb-3"
-      style={{ paddingTop: Math.max(insets.top, 12) }}>
-      <View className="flex-row items-center gap-3">
-        {compact ? (
-          <Pressable
-            onPress={onMenuPress}
-            className="h-11 w-11 items-center justify-center rounded-lg bg-petroleum-muted"
-            accessibilityLabel="Abrir menú">
-            <Menu size={22} color={Brand.petroleum} />
-          </Pressable>
-        ) : null}
+      style={[
+        styles.container,
+        {
+          paddingHorizontal: isMobile ? 16 : 24,
+        },
+      ]}
+    >
 
-        {compact ? (
-          <Text className="flex-shrink text-app-lg font-bold text-petroleum" numberOfLines={1}>
-            SCCVI
-          </Text>
-        ) : (
-          <Text className="text-app-lg font-semibold text-slate-800" numberOfLines={1}>
-            Sistema de Control de Crecimiento y Vacunación Infantil
-          </Text>
-        )}
+      {/* Fila superior */}
+      <View style={styles.topRow}>
 
-        <View className="ml-auto flex-row items-center gap-2">
+        <View style={styles.titleContainer}>
+          <Text
+            numberOfLines={isMobile ? 1 : 2}
+            style={[
+              styles.title,
+              isMobile && styles.mobileTitle,
+            ]}
+          >
+            {isMobile
+              ? 'SCCVI'
+              : 'Sistema de Control de Crecimiento y Vacunación Infantil'}
+          </Text>
+        </View>
+
+        <View style={styles.actions}>
+
+          {/* Notificaciones */}
           <Pressable
-            className="relative h-11 w-11 items-center justify-center rounded-lg bg-slate-100"
-            accessibilityLabel="Notificaciones">
-            <Bell size={22} color={Brand.petroleum} />
-            <View className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-600" />
+            accessibilityRole="button"
+            accessibilityLabel="Ver alertas"
+            onPress={() => router.navigate('/alertas')}
+            style={({ pressed }) => [
+              styles.notificationButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.text}
+            />
           </Pressable>
-          <Pressable
-            className="h-11 flex-row items-center rounded-lg bg-petroleum-muted px-2.5"
-            accessibilityLabel="Perfil de usuario">
-            <View className="h-8 w-8 items-center justify-center rounded-full bg-petroleum">
-              <UserRound size={18} color="#ffffff" />
+
+          {/* Identificación del usuario */}
+          <View style={styles.userContainer}>
+
+            <View style={styles.avatar}>
+              <Ionicons
+                name="person-outline"
+                size={21}
+                color="#FFFFFF"
+              />
             </View>
-            {compact ? null : (
-              <View className="ml-2 mr-1">
-                <Text className="text-app-sm font-semibold text-slate-800">Dra. Ana López</Text>
-                <Text className="text-xs text-slate-500">Personal de salud</Text>
+
+            {!isMobile && (
+              <View style={styles.userInformation}>
+                <Text style={styles.userName}>
+                  Personal de salud
+                </Text>
+
+                <Text style={styles.userRole}>
+                  Vista preliminar
+                </Text>
               </View>
             )}
-          </Pressable>
+
+          </View>
+
         </View>
       </View>
 
-      <View className="mt-3 flex-row items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-        <Search size={20} color={Brand.textMuted} />
-        <TextInput
-          className="ml-2 flex-1 text-app-base text-slate-800"
-          placeholder="Buscar niño por nombre, DPI..."
-          placeholderTextColor={Brand.textMuted}
-          accessibilityLabel="Buscar niño por nombre, DPI o QR"
-        />
-      </View>
+      {/* Buscador general */}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.surface,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 12,
+  },
+
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+
+  titleContainer: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  title: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+    lineHeight: 23,
+  },
+
+  mobileTitle: {
+    fontSize: 20,
+  },
+
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  notificationButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4F7FB',
+    borderRadius: 11,
+  },
+
+  userContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    padding: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 11,
+    backgroundColor: '#F9FBFD',
+  },
+
+  avatar: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    backgroundColor: colors.sidebar,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  userInformation: {
+    paddingRight: 12,
+    gap: 2,
+  },
+
+  userName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
+  userRole: {
+    fontSize: 10,
+    color: colors.muted,
+  },
+
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    minHeight: 43,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 9,
+    backgroundColor: '#F7F9FC',
+    paddingHorizontal: 14,
+  },
+
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    color: colors.text,
+    paddingVertical: 10,
+  },
+
+  pressed: {
+    opacity: 0.7,
+  },
+});

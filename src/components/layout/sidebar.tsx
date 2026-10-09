@@ -1,66 +1,206 @@
-import { Link, usePathname } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SIDEBAR_WIDTH } from '@/constants/brand';
-import { isNavActive, STAFF_NAV } from '@/constants/staff-nav';
+import React from 'react';
 
-type SidebarProps = {
-  variant?: 'fixed' | 'overlay';
-  onNavigate?: () => void;
-};
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
 
-export function Sidebar({ variant = 'fixed', onNavigate }: SidebarProps) {
+import Ionicons from '@expo/vector-icons/Ionicons';
+
+import {
+  Href,
+  router,
+  usePathname,
+} from 'expo-router';
+
+import { NAV_GROUPS } from '../../constants/navigation';
+import { NAV_ICONS } from '../../constants/nav-icons';
+import { colors } from '../../constants/theme';
+
+export function Sidebar() {
   const pathname = usePathname();
-  const insets = useSafeAreaInsets();
 
   return (
-    <View
-      className="bg-petroleum"
-      style={{
-        width: SIDEBAR_WIDTH,
-        paddingTop: insets.top + 16,
-        paddingBottom: insets.bottom + 16,
-      }}>
-      <View className="px-5 pb-6">
-        <Text className="text-app-xl font-bold text-white">SCCVI</Text>
-        <Text className="mt-1 text-app-sm leading-5 text-white/80">
-          Control de crecimiento y vacunación infantil
+    <View style={styles.container}>
+
+      {/* Identificación del sistema */}
+      <View style={styles.brand}>
+        <Text style={styles.brandTitle}>
+          SCCVI
+        </Text>
+
+        <Text style={styles.brandDescription}>
+          Sistema de Control de Crecimiento y Vacunación Infantil
         </Text>
       </View>
 
-      <ScrollView className="flex-1 px-3" showsVerticalScrollIndicator={false}>
-        {STAFF_NAV.map((item) => {
-          const active = isNavActive(pathname, String(item.href));
-          const Icon = item.icon;
+      {/* Grupos de navegación */}
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {NAV_GROUPS.map((group) => (
+          <View
+            key={group.title}
+            style={styles.group}
+          >
+            <Text style={styles.groupTitle}>
+              {group.title}
+            </Text>
 
-          return (
-            <Link key={String(item.href)} href={item.href} asChild onPress={onNavigate}>
-              <Pressable
-                className={`mb-1 flex-row items-center rounded-lg px-3 py-3 ${
-                  active ? 'bg-white/15' : ''
-                }`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}>
-                <Icon size={22} color="#ffffff" strokeWidth={active ? 2.4 : 2} />
-                <Text
-                  className={`ml-3 flex-1 text-app-base ${
-                    active ? 'font-semibold text-white' : 'font-medium text-white/85'
-                  }`}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            </Link>
-          );
-        })}
+            {group.items.map((item) => {
+              const active =
+                pathname === item.href ||
+                pathname.startsWith(item.href + '/');
+
+              return (
+                <Pressable
+                  key={item.href}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.label}
+                  accessibilityState={{ selected: active }}
+                  onPress={() =>
+                    router.navigate(item.href as Href)
+                  }
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    active && styles.activeItem,
+                    pressed && styles.pressedItem,
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      NAV_ICONS[item.href] ??
+                      'ellipse-outline'
+                    }
+                    size={22}
+                    color="#FFFFFF"
+                  />
+
+                  <Text
+                    numberOfLines={2}
+                    style={[
+                      styles.itemText,
+                      active && styles.activeText,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </ScrollView>
 
-      <View className="mx-4 mt-3 rounded-lg bg-petroleum-dark px-3 py-3">
-        <Text className="text-app-sm font-semibold text-white">Personal de salud</Text>
-        <Text className="mt-0.5 text-app-sm text-white/70">
-          {variant === 'overlay' ? 'Menú completo' : 'Centro de atención primaria'}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          SCCVI · Sistema de salud infantil
         </Text>
       </View>
+
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: 260,
+    flexShrink: 0,
+    backgroundColor: colors.sidebar,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255,255,255,0.12)',
+  },
+
+  brand: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
+  },
+
+  brandTitle: {
+    fontSize: 29,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
+  brandDescription: {
+    fontSize: 12,
+    lineHeight: 19,
+    color: '#D3ECF0',
+    marginTop: 3,
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 20,
+  },
+
+  group: {
+    marginBottom: 20,
+    gap: 3,
+  },
+
+  groupTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C4E4E9',
+    letterSpacing: 1,
+    marginBottom: 7,
+    paddingHorizontal: 11,
+  },
+
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 43,
+    borderRadius: 9,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    gap: 13,
+  },
+
+  activeItem: {
+    backgroundColor: 'rgba(255,255,255,0.17)',
+  },
+
+  pressedItem: {
+    opacity: 0.7,
+  },
+
+  itemText: {
+    flex: 1,
+    color: '#E8F5F7',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 19,
+  },
+
+  activeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  footer: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+  },
+
+  footerText: {
+    color: '#B7DCE3',
+    fontSize: 10,
+    textAlign: 'center',
+  },
+});

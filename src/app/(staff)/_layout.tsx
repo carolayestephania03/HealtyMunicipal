@@ -1,5 +1,4 @@
-import { HealthStaffLayout } from '@/components/layout/health-staff-layout';
+import React from 'react';
+import { HealthStaffLayout } from '../../components/layout/health-staff-layout';
 
-export default function StaffLayout() {
-  return <HealthStaffLayout />;
-}
+export default function StaffLayout() { return <HealthStaffLayout />; }

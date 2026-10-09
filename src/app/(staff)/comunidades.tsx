@@ -1,10 +1,5 @@
-import { ModulePlaceholder } from '@/components/layout/module-placeholder';
-
-export default function ComunidadesScreen() {
-  return (
-    <ModulePlaceholder
-      title="Comunidades"
-      description="Cobertura territorial y comunidades de atención."
-    />
-  );
+import React from 'react';
+import { ModulePlaceholder } from '../../components/common/module-placeholder';
+export default function Pantalla() {
+  return <ModulePlaceholder title='Comunidades' description='Registro y consulta de comunidades y localidades.' />;
 }
