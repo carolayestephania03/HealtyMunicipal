@@ -111,6 +111,42 @@ export function AppHeader() {
       </View>
 
       {/* Buscador general */}
+      <View style={styles.searchContainer}>
+
+        <Ionicons
+          name="search-outline"
+          size={20}
+          color={colors.muted}
+        />
+
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder={
+            isMobile
+              ? 'Buscar niño o responsable...'
+              : 'Buscar niño por nombre, código o responsable...'
+          }
+          placeholderTextColor={colors.muted}
+          returnKeyType="search"
+          onSubmitEditing={handleSearch}
+        />
+
+        {search.length > 0 && (
+          <Pressable
+            accessibilityLabel="Limpiar búsqueda"
+            onPress={() => setSearch('')}
+          >
+            <Ionicons
+              name="close-circle"
+              size={19}
+              color={colors.muted}
+            />
+          </Pressable>
+        )}
+      </View>
+
     </View>
   );
 }
