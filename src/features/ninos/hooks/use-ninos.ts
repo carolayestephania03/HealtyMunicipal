@@ -1,63 +1,98 @@
 
 import {
+  useCallback,
   useEffect,
   useState,
 } from 'react';
 
-import { ninosService } from '../services/ninos.service';
+import {
+  ninosService,
+} from '../services/ninos.service';
 
-export function useNinos(accessToken?: string) {
-  const [data, setData] = useState<unknown>(null);
+import type {
+  Nino,
+  NinoFiltrosApi,
+} from '../types';
+
+export function useNinos(
+  filtros: NinoFiltrosApi = {}
+) {
+  const [ninos, setNinos] = useState<Nino[]>([]);
 
   const [loading, setLoading] = useState(true);
 
   const [error, setError] =
     useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
+  const [refreshKey, setRefreshKey] = useState(0);
 
+  const idFamilia = filtros.id_familia;
+  const soloActivos = filtros.solo_activos;
+
+  const refresh = useCallback(() => {
+    setRefreshKey((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
 
-    const cargarNinos = async () => {
+    const cargar = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const response = await ninosService.listar(
-          accessToken,
+        const respuesta = await ninosService.listar(
+          {
+            id_familia: idFamilia,
+            solo_activos: soloActivos,
+          },
           controller.signal
         );
 
-        if (active) {
-          setData(response);
-        }
-      } catch (err) {
-        if (active) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : 'Error al consultar los niños.'
+        if (controller.signal.aborted) return;
+
+        if (
+          respuesta.success !== true ||
+          !Array.isArray(respuesta.data)
+        ) {
+          throw new Error(
+            'La API devolvió un listado de niños inválido.'
           );
         }
+
+        setNinos(respuesta.data);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+
+        setNinos([]);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'No fue posible consultar los niños.'
+        );
       } finally {
-        if (active) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
     };
 
-    cargarNinos();
+    void cargar();
 
     return () => {
-      active = false;
       controller.abort();
     };
-  }, [accessToken]);
+  }, [
+    idFamilia,
+    soloActivos,
+    refreshKey,
+  ]);
 
   return {
-    data,
+    ninos,
     loading,
     error,
+    refresh,
   };
 }

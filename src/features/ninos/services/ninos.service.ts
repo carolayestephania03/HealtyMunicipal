@@ -1,60 +1,149 @@
 
-import { api } from '../../../services/api/api-client';
+import {
+  api,
+} from '../../../services/api/api-client';
 
-import { endpoints } from '../../../services/api/endpoints';
+import {
+  endpoints,
+} from '../../../services/api/endpoints';
 
-// ================================================
-// SERVICIO DE NIÑOS
-// ================================================
+import type {
+  ApiResponse,
+  Nino,
+  NinoId,
+  NinoFiltrosApi,
+  CrearNinoDto,
+  ActualizarNinoDto,
+} from '../types';
+
+// ==========================================
+// RUTA BASE
+// ==========================================
+
+const BASE = endpoints.ninos;
+
+const idPath = (id: NinoId): string =>
+  encodeURIComponent(String(id));
+
+// ==========================================
+// SERVICIOS DEL MÓDULO
+// ==========================================
 
 export const ninosService = {
 
-  // Consultar todos los niños
-  listar: (
-    accessToken?: string,
+  // ----------------------------------------
+  // LISTAR NIÑOS
+  // ----------------------------------------
+
+  async listar(
+    filtros: NinoFiltrosApi = {},
     signal?: AbortSignal
-  ): Promise<unknown> => {
-    return api.get<unknown>(
-      endpoints.ninos,
-      accessToken,
+  ): Promise<ApiResponse<Nino[]>> {
+
+    const params = new URLSearchParams();
+
+    if (filtros.id_familia !== undefined) {
+      params.set(
+        'id_familia',
+        String(filtros.id_familia)
+      );
+    }
+
+    if (filtros.solo_activos !== undefined) {
+      params.set(
+        'solo_activos',
+        String(filtros.solo_activos)
+      );
+    }
+
+    const query = params.toString();
+
+    const url = query
+      ? `${BASE}?${query}`
+      : BASE;
+
+    // El JWT se agrega automáticamente
+    // mediante api-client.ts.
+
+    return api.get<ApiResponse<Nino[]>>(
+      url,
+      undefined,
       signal
     );
   },
 
-  // Consultar un niño por ID
-  obtenerPorId: (
-    id: string | number,
-    accessToken?: string
-  ): Promise<unknown> => {
-    return api.get<unknown>(
-      `${endpoints.ninos}/${encodeURIComponent(String(id))}`,
-      accessToken
+  // ----------------------------------------
+  // OBTENER NIÑO POR ID
+  // ----------------------------------------
+
+  obtenerPorId(
+    id: NinoId
+  ): Promise<ApiResponse<Nino>> {
+
+    return api.get<ApiResponse<Nino>>(
+      `${BASE}/${idPath(id)}`
     );
   },
 
-  // Registrar un niño
-  crear: (
-    datos: unknown,
-    accessToken?: string
-  ): Promise<unknown> => {
-    return api.post<unknown>(
-      endpoints.ninos,
-      datos,
-      accessToken
+  // ----------------------------------------
+  // REGISTRAR NIÑO
+  // ----------------------------------------
+
+  crear(
+    datos: CrearNinoDto
+  ): Promise<ApiResponse<Nino>> {
+
+    return api.post<ApiResponse<Nino>>(
+      BASE,
+      datos
     );
   },
 
-  // Actualizar la información de un niño
-  actualizar: (
-    id: string | number,
-    datos: unknown,
-    accessToken?: string
-  ): Promise<unknown> => {
-    return api.put<unknown>(
-      `${endpoints.ninos}/${encodeURIComponent(String(id))}`,
-      datos,
-      accessToken
+  // ----------------------------------------
+  // ACTUALIZAR NIÑO
+  // ----------------------------------------
+
+  actualizar(
+    id: NinoId,
+    datos: ActualizarNinoDto
+  ): Promise<ApiResponse<Nino>> {
+
+    return api.put<ApiResponse<Nino>>(
+      `${BASE}/${idPath(id)}`,
+      datos
     );
   },
 
+  // ----------------------------------------
+  // CAMBIAR ESTADO
+  // ----------------------------------------
+
+  cambiarEstado(
+    id: NinoId,
+    activo: boolean
+  ): Promise<
+    ApiResponse<{
+      id_nino: NinoId;
+      activo: boolean;
+    }>
+  > {
+
+    return api.patch(
+      `${BASE}/${idPath(id)}/estado`,
+      { activo }
+    );
+  },
+
+  // ----------------------------------------
+  // CONSULTAR NIÑOS POR FAMILIA
+  // ----------------------------------------
+
+  listarPorFamilia(
+    idFamilia: NinoId
+  ): Promise<ApiResponse<Nino[]>> {
+
+    return api.get<ApiResponse<Nino[]>>(
+      `${BASE}/familia/${idPath(idFamilia)}`
+    );
+  },
 };

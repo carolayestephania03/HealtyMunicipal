@@ -1,5 +1,3 @@
 import React from 'react';
-import { ModulePlaceholder } from '../../components/common/module-placeholder';
-export default function Pantalla() {
-  return <ModulePlaceholder title='Carnet digital QR' description='Generación y consulta segura de carnets digitales.' />;
-}
+import { CarnetQrScreen } from '../../features/carnet-qr/components/carnet-qr-screen';
+export default function CarnetQrRoute() { return <CarnetQrScreen />; }

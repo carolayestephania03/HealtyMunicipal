@@ -5,14 +5,17 @@ import React, {
   useState,
 } from 'react';
 
+import { useCallback, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
+
 import {
+  ActivityIndicator,
+  StyleSheet,
   Text,
   View,
-  StyleSheet,
 } from 'react-native';
 
 import {
-  Href,
   router,
   useLocalSearchParams,
 } from 'expo-router';
@@ -21,9 +24,10 @@ import { ScreenContainer } from '../../../components/layout/screen-container';
 import { ScreenHeader } from '../../../components/layout/screen-header';
 import { ResponsiveGrid } from '../../../components/layout/responsive-grid';
 
-import { StatCard } from '../../../components/ui/stat-card';
 import { SectionCard } from '../../../components/ui/section-card';
+import { StatCard } from '../../../components/ui/stat-card';
 import { StatusBadge } from '../../../components/ui/status-badge';
+import { AppButton } from '../../../components/ui/app-button';
 
 import { FilterBar } from '../../../components/data/filter-bar';
 import type { DataFilter } from '../../../components/data/filter-bar';
@@ -34,102 +38,56 @@ import type { DataColumn } from '../../../components/data/data-table';
 import { Pagination } from '../../../components/data/pagination';
 import type { RowAction } from '../../../components/data/row-actions';
 
+import { useNinos } from '../hooks/use-ninos';
+import type { Nino } from '../types';
+
 import { colors } from '../../../constants/theme';
 
-// =============================================
-// TIPOS
-// =============================================
+const PAGE_SIZE = 7;
 
-type Vacunacion =
-  | 'al-dia'
-  | 'pendiente'
-  | 'atrasada';
-
-type NinoDemo = {
-  id: string;
-  nombre: string;
-  edadMeses: number;
-  comunidad: string;
-  responsable: string;
-  vacunacion: Vacunacion;
-};
-
-// =============================================
-// DATOS FICTICIOS PARA PRUEBAS DE INTERFAZ
-// =============================================
-
-const DEMO_NINOS: NinoDemo[] = [
-  {
-    id: 'DEMO-001',
-    nombre: 'Paciente de prueba 01',
-    edadMeses: 8,
-    comunidad: 'Comunidad A',
-    responsable: 'Tutor de prueba 01',
-    vacunacion: 'al-dia',
-  },
-  {
-    id: 'DEMO-002',
-    nombre: 'Paciente de prueba 02',
-    edadMeses: 14,
-    comunidad: 'Comunidad B',
-    responsable: 'Tutor de prueba 02',
-    vacunacion: 'pendiente',
-  },
-  {
-    id: 'DEMO-003',
-    nombre: 'Paciente de prueba 03',
-    edadMeses: 36,
-    comunidad: 'Comunidad A',
-    responsable: 'Tutor de prueba 03',
-    vacunacion: 'atrasada',
-  },
-  {
-    id: 'DEMO-004',
-    nombre: 'Paciente de prueba 04',
-    edadMeses: 11,
-    comunidad: 'Comunidad C',
-    responsable: 'Tutor de prueba 04',
-    vacunacion: 'al-dia',
-  },
-  {
-    id: 'DEMO-005',
-    nombre: 'Paciente de prueba 05',
-    edadMeses: 26,
-    comunidad: 'Comunidad B',
-    responsable: 'Tutor de prueba 05',
-    vacunacion: 'pendiente',
-  },
-  {
-    id: 'DEMO-006',
-    nombre: 'Paciente de prueba 06',
-    edadMeses: 5,
-    comunidad: 'Comunidad C',
-    responsable: 'Tutor de prueba 06',
-    vacunacion: 'al-dia',
-  },
-  {
-    id: 'DEMO-007',
-    nombre: 'Paciente de prueba 07',
-    edadMeses: 19,
-    comunidad: 'Comunidad A',
-    responsable: 'Tutor de prueba 07',
-    vacunacion: 'al-dia',
-  },
-  {
-    id: 'DEMO-008',
-    nombre: 'Paciente de prueba 08',
-    edadMeses: 43,
-    comunidad: 'Comunidad C',
-    responsable: 'Tutor de prueba 08',
-    vacunacion: 'atrasada',
-  },
-];
-
-// =============================================
+// ============================================
 // FORMATO DE EDAD
-// =============================================
+// ============================================
 
-function formatEdad(meses: number): string {
+function edadEnMeses(fechaISO: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(
+    fechaISO
+  );
+
+  if (!match) return null;
+
+  const anio = Number(match[1]);
+  const mes = Number(match[2]);
+  const dia = Number(match[3]);
+
+  const nacimiento = new Date(anio, mes - 1, dia);
+  const hoy = new Date();
+
+  if (
+    nacimiento.getFullYear() !== anio ||
+    nacimiento.getMonth() !== mes - 1 ||
+    nacimiento.getDate() !== dia ||
+    nacimiento > hoy
+  ) {
+    return null;
+  }
+
+  let meses =
+    (hoy.getFullYear() - anio) * 12 +
+    (hoy.getMonth() + 1 - mes);
+
+  if (hoy.getDate() < dia) {
+    meses--;
+  }
+
+  return Math.max(0, meses);
+}
+
+function mostrarEdad(fechaISO: string): string {
+  const meses = edadEnMeses(fechaISO);
+
+  if (meses === null) return '—';
+
   if (meses < 12) {
     return `${meses} ${meses === 1 ? 'mes' : 'meses'}`;
   }
@@ -139,315 +97,250 @@ function formatEdad(meses: number): string {
 
   return (
     `${anios} ${anios === 1 ? 'año' : 'años'}` +
-    (restantes ? ` ${restantes} meses` : '')
+    (restantes > 0 ? ` ${restantes} meses` : '')
   );
 }
 
-// =============================================
-// ESTADOS DE VACUNACIÓN
-// =============================================
+// ============================================
+// NORMALIZAR BÚSQUEDA
+// ============================================
 
-const estado = {
-  'al-dia': {
-    label: 'Al día',
-    tone: 'success',
-  },
-  pendiente: {
-    label: 'Pendiente',
-    tone: 'warning',
-  },
-  atrasada: {
-    label: 'Atrasada',
-    tone: 'danger',
-  },
-} as const;
+function normalizar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
-// =============================================
-// COLUMNAS REUTILIZABLES
-// =============================================
+// ============================================
+// COLUMNAS DE LA TABLA
+// ============================================
 
-const COLUMNS: DataColumn<NinoDemo>[] = [
+const COLUMNAS: DataColumn<Nino>[] = [
   {
-    key: 'id',
-    title: 'Código',
-    width: 105,
-    render: (item) => (
-      <Text style={styles.value}>
-        {item.id}
+    key: 'expediente',
+    title: 'Expediente',
+    width: 145,
+    render: (nino) => (
+      <Text style={styles.codigo}>
+        {nino.codigo_expediente}
       </Text>
     ),
   },
   {
     key: 'nombre',
     title: 'Nombre del niño',
-    width: 205,
-    render: (item) => (
-      <Text style={styles.name}>
-        {item.nombre}
+    width: 220,
+    render: (nino) => (
+      <Text style={styles.nombre}>
+        {nino.nombres} {nino.apellidos}
       </Text>
     ),
   },
   {
     key: 'edad',
     title: 'Edad',
-    width: 125,
-    render: (item) => (
-      <Text style={styles.value}>
-        {formatEdad(item.edadMeses)}
+    width: 140,
+    render: (nino) => (
+      <Text style={styles.texto}>
+        {mostrarEdad(nino.fecha_nacimiento)}
       </Text>
     ),
   },
   {
-    key: 'comunidad',
-    title: 'Comunidad',
+    key: 'familia',
+    title: 'Familia',
+    width: 150,
+    render: (nino) => (
+      <Text style={styles.texto}>
+        {nino.familia?.codigo_familia ??
+          String(nino.id_familia)}
+      </Text>
+    ),
+  },
+  {
+    key: 'sexo',
+    title: 'Sexo',
+    width: 115,
+    render: (nino) => (
+      <Text style={styles.texto}>
+        {nino.sexo === 'M'
+          ? 'Masculino'
+          : 'Femenino'}
+      </Text>
+    ),
+  },
+  {
+    key: 'estado',
+    title: 'Estado',
     width: 135,
-    render: (item) => (
-      <Text style={styles.value}>
-        {item.comunidad}
-      </Text>
-    ),
-  },
-  {
-    key: 'responsable',
-    title: 'Responsable',
-    width: 170,
-    render: (item) => (
-      <Text style={styles.value}>
-        {item.responsable}
-      </Text>
-    ),
-  },
-  {
-    key: 'vacunacion',
-    title: 'Vacunación',
-    width: 135,
-    render: (item) => (
+    render: (nino) => (
       <StatusBadge
-        {...estado[item.vacunacion]}
+        label={nino.activo ? 'Activo' : 'Inactivo'}
+        tone={nino.activo ? 'success' : 'neutral'}
       />
     ),
   },
 ];
 
-const PAGE_SIZE = 5;
-
-// =============================================
+// ============================================
 // PANTALLA PRINCIPAL
-// =============================================
+// ============================================
 
 export function NinosScreen() {
   const { q } = useLocalSearchParams<{
     q?: string;
   }>();
 
+  const {
+    ninos,
+    loading,
+    error,
+    refresh,
+  } = useNinos();
+
+  const primeraApertura = useRef(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (primeraApertura.current) {
+        primeraApertura.current = false;
+        return;
+      }
+
+      refresh();
+    }, [refresh])
+  );
+
   const [search, setSearch] = useState('');
-
-  const [comunidad, setComunidad] =
-    useState('todas');
-
-  const [vacunacion, setVacunacion] =
-    useState('todos');
-
-  const [edad, setEdad] =
-    useState('todas');
-
+  const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
 
-  // Recibir búsquedas del encabezado global
+  // Búsqueda desde el AppHeader.
   useEffect(() => {
-    setSearch(
-      typeof q === 'string' ? q : ''
-    );
+    setSearch(typeof q === 'string' ? q : '');
     setPage(1);
   }, [q]);
 
-  // ===========================================
-  // FILTRADO
-  // ===========================================
+  // ==========================================
+  // INDICADORES
+  // ==========================================
 
-  const filtered = useMemo(
-    () =>
-      DEMO_NINOS.filter((nino) => {
-        const term = search
-          .toLocaleLowerCase()
-          .trim();
+  const total = ninos.length;
 
-        const matchesText =
-          !term ||
-          [
-            nino.nombre,
-            nino.id,
-            nino.responsable,
-          ].some((text) =>
-            text
-              .toLocaleLowerCase()
-              .includes(term)
-          );
+  const menoresDos = ninos.filter((nino) => {
+    const meses = edadEnMeses(nino.fecha_nacimiento);
 
-        const matchesComunidad =
-          comunidad === 'todas' ||
-          nino.comunidad === comunidad;
+    return meses !== null && meses < 24;
+  }).length;
 
-        const matchesVacunacion =
-          vacunacion === 'todos' ||
-          nino.vacunacion === vacunacion;
+  const activos = ninos.filter(
+    (nino) => nino.activo === true
+  ).length;
 
-        const matchesEdad =
-          edad === 'todas' ||
-          (
-            edad === 'menor1' &&
-            nino.edadMeses < 12
-          ) ||
-          (
-            edad === '1a2' &&
-            nino.edadMeses >= 12 &&
-            nino.edadMeses < 24
-          ) ||
-          (
-            edad === '2omas' &&
-            nino.edadMeses >= 24
-          );
+  const inactivos = ninos.filter(
+    (nino) => nino.activo === false
+  ).length;
 
-        return (
-          matchesText &&
-          matchesComunidad &&
-          matchesVacunacion &&
-          matchesEdad
-        );
-      }),
-    [search, comunidad, vacunacion, edad]
-  );
+  // ==========================================
+  // BÚSQUEDA Y FILTRADO LOCAL
+  // ==========================================
 
-  // ===========================================
+  const filtrados = useMemo(() => {
+    const termino = normalizar(search);
+
+    return ninos.filter((nino) => {
+      const texto = normalizar(
+        [
+          nino.codigo_expediente,
+          nino.nombres,
+          nino.apellidos,
+          nino.familia?.codigo_familia ?? '',
+        ].join(' ')
+      );
+
+      const coincideBusqueda =
+        !termino || texto.includes(termino);
+
+      const coincideEstado =
+        estado === 'todos' ||
+        (estado === 'activo' && nino.activo) ||
+        (estado === 'inactivo' && !nino.activo);
+
+      return coincideBusqueda && coincideEstado;
+    });
+  }, [ninos, search, estado]);
+
+  // ==========================================
   // PAGINACIÓN
-  // ===========================================
+  // ==========================================
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filtered.length / PAGE_SIZE)
+    Math.ceil(filtrados.length / PAGE_SIZE)
   );
 
-  const visible = filtered.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
+  const paginaActual = Math.min(page, totalPages);
+
+  const registrosVisibles = filtrados.slice(
+    (paginaActual - 1) * PAGE_SIZE,
+    paginaActual * PAGE_SIZE
   );
 
-  // ===========================================
-  // CONFIGURACIÓN DE FILTROS
-  // ===========================================
+  // ==========================================
+  // FILTROS
+  // ==========================================
 
-  const filters: DataFilter[] = [
+  const filtros: DataFilter[] = [
     {
-      key: 'comunidad',
-      label: 'Comunidad',
-      value: comunidad,
-      options: [
-        {
-          label: 'Todas las comunidades',
-          value: 'todas',
-        },
-        {
-          label: 'Comunidad A',
-          value: 'Comunidad A',
-        },
-        {
-          label: 'Comunidad B',
-          value: 'Comunidad B',
-        },
-        {
-          label: 'Comunidad C',
-          value: 'Comunidad C',
-        },
-      ],
-      onChange: (value) => {
-        setComunidad(value);
+      key: 'estado',
+      label: 'Estado del niño',
+      value: estado,
+      onChange: (valor) => {
+        setEstado(valor);
         setPage(1);
       },
-    },
-    {
-      key: 'vacunacion',
-      label: 'Vacunación',
-      value: vacunacion,
       options: [
-        {
-          label: 'Todos los estados',
-          value: 'todos',
-        },
-        {
-          label: 'Al día',
-          value: 'al-dia',
-        },
-        {
-          label: 'Pendiente',
-          value: 'pendiente',
-        },
-        {
-          label: 'Atrasada',
-          value: 'atrasada',
-        },
+        { label: 'Todos', value: 'todos' },
+        { label: 'Activos', value: 'activo' },
+        { label: 'Inactivos', value: 'inactivo' },
       ],
-      onChange: (value) => {
-        setVacunacion(value);
-        setPage(1);
-      },
-    },
-    {
-      key: 'edad',
-      label: 'Edad',
-      value: edad,
-      options: [
-        {
-          label: 'Todas las edades',
-          value: 'todas',
-        },
-        {
-          label: 'Menor de 1 año',
-          value: 'menor1',
-        },
-        {
-          label: 'De 1 a menos de 2 años',
-          value: '1a2',
-        },
-        {
-          label: '2 años o más',
-          value: '2omas',
-        },
-      ],
-      onChange: (value) => {
-        setEdad(value);
-        setPage(1);
-      },
     },
   ];
 
-  // ===========================================
-  // ACCIONES POR REGISTRO
-  // ===========================================
+  // ==========================================
+  // ACCIONES
+  // ==========================================
 
-  const getActions = (
-    nino: NinoDemo
-  ): RowAction[] => [
-    {
-      type: 'view',
-      label: 'Ver',
-      onPress: () =>
-        router.push(
-          `/ninos/${nino.id}` as Href
-        ),
-    },
-    {
-      type: 'edit',
-      label: 'Editar',
-      onPress: () =>
-        router.push(
-          `/ninos/${nino.id}/editar` as Href
-        ),
-    },
-  ];
+  const acciones = (nino: Nino): RowAction[] => {
+    const id = String(nino.id_nino);
 
-  // ===========================================
+    return [
+      {
+        type: 'view',
+        label: 'Visualizar',
+        onPress: () =>
+          router.push({
+            pathname: '/ninos/[id]',
+            params: { id },
+          }),
+      },
+      {
+        type: 'edit',
+        label: 'Editar',
+        onPress: () =>
+          router.push({
+            pathname: '/ninos/[id]/editar',
+            params: { id },
+          }),
+      },
+    ];
+  };
+
+  // ==========================================
   // INTERFAZ
-  // ===========================================
+  // ==========================================
 
   return (
     <ScreenContainer>
@@ -457,122 +350,142 @@ export function NinosScreen() {
         description="Registro, consulta y seguimiento de los niños del centro de salud."
         actionLabel="Registrar niño"
         actionIcon="add-outline"
-        onAction={() =>
-          router.push('/ninos/nuevo')
-        }
+        onAction={() => router.push('/ninos/nuevo')}
       />
 
-      {/* Indicadores generales */}
       <ResponsiveGrid maxColumns={4}>
-
         <StatCard
-          value="—"
+          value={loading ? '—' : total}
           label="Niños registrados"
           icon="people-outline"
+          tone="info"
         />
 
         <StatCard
-          value="—"
+          value={loading ? '—' : menoresDos}
           label="Menores de 2 años"
           icon="body-outline"
           tone="success"
         />
 
         <StatCard
-          value="—"
-          label="Con control reciente"
-          icon="stats-chart-outline"
-          tone="warning"
+          value={loading ? '—' : activos}
+          label="Niños activos"
+          icon="checkmark-circle-outline"
+          tone="success"
         />
 
         <StatCard
-          value="—"
-          label="Con vacunas pendientes"
-          icon="medkit-outline"
-          tone="danger"
+          value={loading ? '—' : inactivos}
+          label="Niños inactivos"
+          icon="alert-circle-outline"
+          tone="warning"
         />
-
       </ResponsiveGrid>
 
-      {/* Listado */}
       <SectionCard
         title="Listado de niños"
         icon="list-outline"
+        action={
+          <AppButton
+            label="Actualizar"
+            icon="refresh-outline"
+            variant="outline"
+            size="small"
+            onPress={refresh}
+            disabled={loading}
+          />
+        }
       >
-
-        <View style={styles.demoBanner}>
-          <Text style={styles.demoText}>
-            DEMOSTRACIÓN: los registros siguientes
-            son ejemplos locales; todavía no están
-            conectados a la API ni representan
-            pacientes reales.
-          </Text>
-        </View>
-
-        {/* Buscador y filtros */}
         <FilterBar
           searchValue={search}
-          onSearchChange={(value) => {
-            setSearch(value);
+          onSearchChange={(valor) => {
+            setSearch(valor);
             setPage(1);
           }}
-          searchPlaceholder="Buscar por nombre, código o responsable..."
-          filters={filters}
+          searchPlaceholder="Buscar por nombres, apellidos, expediente o familia..."
+          filters={filtros}
         />
 
-        {/* Tabla / tarjetas */}
-        <DataTable
-          data={visible}
-          columns={COLUMNS}
-          keyExtractor={(nino) => nino.id}
-          primaryColumnKey="nombre"
-          actions={getActions}
-          emptyTitle="Sin resultados"
-          emptyDescription="Pruebe con otros filtros o cambie el texto de búsqueda."
-        />
+        {loading ? (
+          <View style={styles.cargando}>
+            <ActivityIndicator
+              color={colors.primary}
+              size="large"
+            />
+            <Text style={styles.texto}>
+              Consultando registros...
+            </Text>
+          </View>
+        ) : error ? (
+          <View style={styles.cargando}>
+            <Text style={styles.error}>
+              {error}
+            </Text>
+            <AppButton
+              label="Reintentar"
+              onPress={refresh}
+              variant="outline"
+            />
+          </View>
+        ) : (
+          <>
+            <DataTable
+              data={registrosVisibles}
+              columns={COLUMNAS}
+              keyExtractor={(nino) =>
+                String(nino.id_nino)
+              }
+              primaryColumnKey="nombre"
+              actions={acciones}
+              emptyTitle="Sin resultados"
+              emptyDescription="No se encontraron niños que coincidan con los filtros."
+            />
 
-        {/* Paginación */}
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          totalItems={filtered.length}
-          pageSize={PAGE_SIZE}
-        />
-
+            <Pagination
+              page={paginaActual}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={PAGE_SIZE}
+              totalItems={filtrados.length}
+            />
+          </>
+        )}
       </SectionCard>
 
     </ScreenContainer>
   );
 }
 
-// =============================================
-// ESTILOS
-// =============================================
-
 const styles = StyleSheet.create({
-  value: {
-    fontSize: 12,
-    color: colors.text,
-  },
-
-  name: {
+  nombre: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.text,
   },
 
-  demoBanner: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.infoLight,
-    padding: 10,
+  codigo: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
 
-  demoText: {
+  texto: {
     fontSize: 12,
-    lineHeight: 18,
-    color: colors.muted,
+    color: colors.text,
+  },
+
+  cargando: {
+    paddingVertical: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+
+  error: {
+    fontSize: 13,
+    color: colors.danger,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
