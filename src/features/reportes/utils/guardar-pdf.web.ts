@@ -1,10 +1,10 @@
 // Descarga usando el navegador sin exponer el JWT en la URL ni usar rutas públicas.
 export async function guardarPdf(nombre: string, base64: string): Promise<void> {
   const binario = atob(base64);
-  const partes: Uint8Array[] = [];
+  const partes: BlobPart[] = [];
   for (let p = 0; p < binario.length; p += 32768) {
     const segmento = binario.slice(p, p + 32768);
-    const bytes = new Uint8Array(segmento.length);
+    const bytes = new Uint8Array(new ArrayBuffer(segmento.length));
     for (let j = 0; j < segmento.length; j++) bytes[j] = segmento.charCodeAt(j);
     partes.push(bytes);
   }
