@@ -13,6 +13,7 @@ import { router } from 'expo-router';
 import { ScreenContainer } from '../../../components/layout/screen-container';
 import { ScreenHeader } from '../../../components/layout/screen-header';
 import { FamiliasCrudSection } from './familias-crud-section';
+import { TelegramVinculacion } from './telegram-vinculacion';
 import { TablaRegistros, EtiquetaEstado, AccionTabla, ResumenRegistros } from './tabla-registros';
 import type { ColumnaTabla } from './tabla-registros';
 import { colors } from '../../../constants/theme';
@@ -169,7 +170,6 @@ export function PadresFamiliasScreen() {
   const [telefono, setTelefono] = useState('');
   const [correo, setCorreo] = useState('');
   const [canal, setCanal] = useState<Canal | 'NINGUNO'>('NINGUNO');
-  const [telegram, setTelegram] = useState('');
   const [dpi, setDpi] = useState('');
   const [asociando, setAsociando] = useState(false);
   const [busquedaNino, setBusquedaNino] = useState('');
@@ -248,7 +248,7 @@ export function PadresFamiliasScreen() {
         const t = respuesta.data;
         setNombres(t.nombres);setApellidos(t.apellidos);
         setTelefono(t.telefono ?? '');setCorreo(t.correo ?? '');
-        setCanal(t.canal_preferido ?? 'NINGUNO');setTelegram(t.telegram_chat_id ?? '');
+        setCanal(t.canal_preferido === 'TELEGRAM' || t.canal_preferido === 'EMAIL' ? t.canal_preferido : 'NINGUNO');
       }
     } catch (err) {
       setErrorPerfil(err instanceof Error ? err.message : 'No se pudo consultar el tutor.');
@@ -266,7 +266,7 @@ export function PadresFamiliasScreen() {
 
   const iniciarCreacion = () => {
     setNombres(''); setApellidos(''); setTelefono(''); setCorreo('');
-    setCanal('NINGUNO'); setTelegram(''); setDpi('');
+    setCanal('NINGUNO'); setDpi('');
     setErrorGuardar(null); setMensaje(null); setVista('nuevo');
   };
 
@@ -276,8 +276,7 @@ export function PadresFamiliasScreen() {
     setApellidos(perfil.apellidos);
     setTelefono(perfil.telefono ?? '');
     setCorreo(perfil.correo ?? '');
-    setCanal(perfil.canal_preferido ?? 'NINGUNO');
-    setTelegram(perfil.telegram_chat_id ?? '');
+    setCanal(perfil.canal_preferido === 'TELEGRAM' && perfil.telegram_chat_id ? 'TELEGRAM' : perfil.canal_preferido === 'EMAIL' ? 'EMAIL' : 'NINGUNO');
     setErrorGuardar(null);
     setMensaje(null);
     setVista('editar');
@@ -289,7 +288,6 @@ export function PadresFamiliasScreen() {
     const apellidosLimpios = apellidos.trim();
     const correoLimpio = correo.trim().toLowerCase();
     const telefonoLimpio = telefono.trim();
-    const telegramLimpio = telegram.trim();
     const dpiLimpio = dpi.trim();
     if (vista === 'nuevo' && dpiLimpio && !/^\d{13}$/.test(dpiLimpio)) {
       setErrorGuardar('El DPI debe contener exactamente 13 dígitos.');
@@ -301,8 +299,8 @@ export function PadresFamiliasScreen() {
       setErrorGuardar('Nombres y apellidos deben tener entre 2 y 100 caracteres.');
       return;
     }
-    if (telefonoLimpio.length > 30 || telegramLimpio.length > 100) {
-      setErrorGuardar('El teléfono o identificador de Telegram supera el límite permitido.');
+    if (telefonoLimpio.length > 30) {
+      setErrorGuardar('El teléfono supera el límite permitido.');
       return;
     }
     if (correoLimpio && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio)) {
@@ -320,7 +318,6 @@ export function PadresFamiliasScreen() {
       telefono: telefonoLimpio || null,
       correo: correoLimpio || null,
       canal_preferido: canal === 'NINGUNO' ? null : canal,
-      telegram_chat_id: telegramLimpio || null,
     };
 
     setGuardando(true);
@@ -525,11 +522,10 @@ export function PadresFamiliasScreen() {
                 <Entrada etiqueta="DPI (13 dígitos)" valor={dpi} onChange={setDpi} keyboardType="phone-pad"/>
                 <Entrada etiqueta="Teléfono" valor={telefono} onChange={setTelefono} keyboardType="phone-pad"/>
                 <Entrada etiqueta="Correo electrónico" valor={correo} onChange={setCorreo} keyboardType="email-address"/>
-                <Entrada etiqueta="ID Telegram" valor={telegram} onChange={setTelegram}/>
               </View>
               <Text style={styles.etiqueta}>Canal preferido</Text>
               <View style={styles.filaOpciones}>
-                {(['NINGUNO','EMAIL','WHATSAPP','TELEGRAM'] as const).map(opcion => (
+                {(['NINGUNO','EMAIL'] as const).map(opcion => (
                   <Pressable key={opcion} onPress={() => setCanal(opcion)}
                     style={[styles.opcionCanal, canal===opcion && styles.opcionCanalActiva]}>
                     <Text style={[styles.opcionTexto, canal===opcion && styles.opcionTextoActivo]}>{opcion==='NINGUNO'?'Sin preferencia':opcion}</Text>
@@ -572,7 +568,7 @@ export function PadresFamiliasScreen() {
                   <TextoDato etiqueta="Teléfono" valor={perfil.telefono} />
                   <TextoDato etiqueta="Correo electrónico" valor={perfil.correo} />
                   <TextoDato etiqueta="Canal preferido" valor={perfil.canal_preferido} />
-                  <TextoDato etiqueta="Telegram" valor={perfil.telegram_chat_id} />
+                  <TextoDato etiqueta="Telegram" valor={perfil.telegram_chat_id ? "Vinculado" : "No vinculado"} />
                 </View>
                 <View style={styles.filaAcciones}>
                   {confirmarEstado ? (
@@ -594,6 +590,8 @@ export function PadresFamiliasScreen() {
                 </View>
                 {errorPerfil ? <Text style={styles.error}>{errorPerfil}</Text> : null}
               </View>
+
+              <TelegramVinculacion idTutor={perfil.id_tutor} activo={perfil.activo} />
 
               <View style={styles.panel}>
                 <View style={styles.encabezadoPanel}>
@@ -685,11 +683,10 @@ export function PadresFamiliasScreen() {
                 <Entrada etiqueta="Apellidos *" valor={apellidos} onChange={setApellidos} />
                 <Entrada etiqueta="Teléfono" valor={telefono} onChange={setTelefono} keyboardType="phone-pad" />
                 <Entrada etiqueta="Correo electrónico" valor={correo} onChange={setCorreo} keyboardType="email-address" />
-                <Entrada etiqueta="Identificador Telegram" valor={telegram} onChange={setTelegram} />
               </View>
               <Text style={styles.etiqueta}>Canal preferido</Text>
               <View style={styles.filaOpciones}>
-                {(['NINGUNO', 'EMAIL', 'WHATSAPP', 'TELEGRAM'] as const).map((opcion) => (
+                {(['NINGUNO', 'EMAIL', 'TELEGRAM'] as const).filter(opcion => opcion !== 'TELEGRAM' || Boolean(perfil?.telegram_chat_id)).map((opcion) => (
                   <Pressable
                     key={opcion}
                     onPress={() => setCanal(opcion)}

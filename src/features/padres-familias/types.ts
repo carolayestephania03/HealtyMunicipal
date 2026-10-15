@@ -1,5 +1,5 @@
 export type Id = number | string;
-export type Canal = 'EMAIL' | 'WHATSAPP' | 'TELEGRAM';
+export type Canal = 'EMAIL' | 'TELEGRAM';
 export type Parentesco = 'MADRE' | 'PADRE' | 'TUTOR' | 'OTRO';
 
 export type RelacionTutorNino = {
@@ -57,7 +57,6 @@ export type EditarTutorDto = {
   telefono?: string | null;
   correo?: string | null;
   canal_preferido?: Canal | null;
-  telegram_chat_id?: string | null;
 };
 
 export type RespuestaApi<T> = {
@@ -73,7 +72,6 @@ export type CrearTutorDto = {
   telefono?: string | null;
   correo?: string | null;
   canal_preferido?: Canal | null;
-  telegram_chat_id?: string | null;
 };
 
 export type AsociarTutorNinoDto = {
@@ -100,3 +98,14 @@ export type RespuestaTablaTutores = RespuestaApi<{
   paginacion: { pagina: number; limite: number; total: number; totalPaginas: number };
   resumen: { total: number; activos: number; inactivos: number; conHijos: number };
 }>;
+
+// API Telegram: nunca exponer Chat ID completo ni el token del bot.
+export type EstadoTelegramTutor = {
+  id_tutor: Id; vinculado: boolean; canal_preferido: Canal | null;
+  chat_id_mascara: string | null; solicitud_pendiente: boolean; expira_en: string | null;
+};
+export type EnlaceTelegramTutor = {
+  id_tutor: Id; vinculado: boolean; url: string;
+  expira_en: string; expira_en_minutos: number;
+};
+export type ResultadoPruebaTelegram = { enviado: boolean; messageId: string | null };

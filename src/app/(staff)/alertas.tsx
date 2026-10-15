@@ -1,5 +1,6 @@
 import React from 'react';
-import { ModulePlaceholder } from '../../components/common/module-placeholder';
-export default function Pantalla() {
-  return <ModulePlaceholder title='Alertas' description='Detección y seguimiento de alertas clínicas y de vacunación.' />;
+import { AlertasScreen } from '../../features/alertas/components/alertas-screen';
+
+export default function AlertasRoute() {
+  return <AlertasScreen />;
 }
