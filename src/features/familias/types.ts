@@ -21,7 +21,7 @@ export type Familia = {
   codigo_familia: string;
 
   direccion?: string | null;
-  referencia_direccion?: string | null;
+  referencia?: string | null;
 
   activo?: boolean;
 
