@@ -82,7 +82,7 @@ export function FamiliasCrudSection() {
     setCodigo(familia?.codigo_familia ?? '');
     setIdComunidad(familia ? String(familia.id_comunidad) : '');
     setDireccion(familia?.direccion ?? '');
-    setReferencia(familia?.referencia_direccion ?? '');
+    setReferencia(familia?.referencia ?? '');
     setError(null); setMensaje(null);
   };
   const guardar = async () => {
@@ -96,7 +96,7 @@ export function FamiliasCrudSection() {
     setProcesando(true); setError(null);
     try {
       const datos = { id_comunidad: id, codigo_familia: codigo.trim().toUpperCase(),
-        direccion: direccion.trim() || null, referencia_direccion: referencia.trim() || null };
+        direccion: direccion.trim() || null, referencia: referencia.trim() || null };
       const r = seleccionada
         ? await familiasCrudService.editar(seleccionada.id_familia, datos)
         : await familiasCrudService.crear(datos);
@@ -178,7 +178,7 @@ export function FamiliasCrudSection() {
       <Text style={styles.title}>{seleccionada.codigo_familia}</Text>
       <Text style={styles.hint}>Comunidad: {seleccionada.comunidad?.nombre ?? 'Sin información'} · {seleccionada.activo ? 'Activa' : 'Inactiva'}</Text>
       <Text style={styles.hint}>Dirección: {seleccionada.direccion || 'No registrada'}</Text>
-      <Text style={styles.hint}>Referencia: {seleccionada.referencia_direccion || 'No registrada'}</Text>
+      <Text style={styles.hint}>Referencia: {seleccionada.referencia || 'No registrada'}</Text>
       <Text style={styles.title}>Niños pertenecientes a la familia</Text>
       {!seleccionada.ninos?.length ? <Text style={styles.hint}>No se encontraron niños asociados a esta familia.</Text> :
         seleccionada.ninos.map(n => <View key={String(n.id_nino)} style={styles.result}>

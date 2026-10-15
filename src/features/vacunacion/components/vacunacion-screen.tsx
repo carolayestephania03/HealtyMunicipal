@@ -5,6 +5,7 @@ import { colors } from '../../../constants/theme';
 import type { Vacunacion, EstadoVacunacion } from '../types';
 import { fechaSoloDia } from '../types';
 import { vacunacionService } from '../services/vacunacion.service';
+import { VacunasCrudSection } from '../../vacunas/components/vacunas-crud-section';
 import { Panel, Boton, Campo, Estado, uiStyles } from './ui-vacunacion';
 
 export function VacunacionScreen() {
@@ -14,8 +15,10 @@ export function VacunacionScreen() {
   const [texto, setTexto] = useState('');
   const [estado, setEstado] = useState<EstadoVacunacion | 'TODOS'>('TODOS');
   const [revision, setRevision] = useState(0);
+  const [mostrarCatalogo, setMostrarCatalogo] = useState(false);
 
   useEffect(() => {
+    if (mostrarCatalogo) return;
     const controller = new AbortController();
     const cargar = async () => {
       setLoading(true);
@@ -31,7 +34,7 @@ export function VacunacionScreen() {
     };
     void cargar();
     return () => controller.abort();
-  }, [revision]);
+  }, [revision, mostrarCatalogo]);
 
   const filtrados = useMemo(() => registros.filter((r) => {
     const contenido = `${r.nino?.nombres ?? ''} ${r.nino?.apellidos ?? ''} ${r.nino?.codigo_expediente ?? ''} ${r.esquema?.vacuna?.nombre ?? ''}`.toLowerCase();
@@ -39,32 +42,42 @@ export function VacunacionScreen() {
   }), [registros, texto, estado]);
 
   return <ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-    <Text style={s.title}>Vacunación</Text>
-    <Text style={uiStyles.muted}>Registros y estados guardados en PostgreSQL.</Text>
-    <Panel title="Consultar vacunaciones" right={<Boton label="Actualizar" outline onPress={() => setRevision((v) => v + 1)} /> }>
-      <Campo label="Buscar niño, expediente o vacuna" value={texto} onChange={setTexto} placeholder="Escriba para filtrar" />
-      <View style={s.filters}>{(['TODOS', 'PENDIENTE', 'APLICADA', 'ATRASADA'] as const).map((opcion) =>
-        <Boton key={opcion} label={opcion} outline={estado !== opcion} onPress={() => setEstado(opcion)} />)}</View>
-      {loading ? <ActivityIndicator color={colors.primary} /> : error ?
-        <><Text style={uiStyles.error}>{error}</Text><Boton label="Reintentar" outline onPress={() => setRevision((v) => v + 1)}/></> :
-        filtrados.length === 0 ? <Text style={uiStyles.muted}>No se encontraron registros.</Text> :
-        filtrados.map((r) => <View style={s.record} key={String(r.id_vacunacion_nino)}>
-          <View style={{ flex: 1, minWidth: 170, gap: 5 }}>
-            <Text style={s.name}>{r.nino?.nombres ?? 'Niño'} {r.nino?.apellidos ?? ''}</Text>
-            <Text style={uiStyles.muted}>Expediente: {r.nino?.codigo_expediente ?? '—'}</Text>
-            <Text style={uiStyles.body}>{r.esquema?.vacuna?.nombre ?? 'Vacuna'} · Dosis {r.esquema?.numero_dosis ?? '—'}</Text>
-            <Text style={uiStyles.muted}>Programada: {fechaSoloDia(r.fecha_programada)} · Aplicada: {fechaSoloDia(r.fecha_aplicacion)}</Text>
-            <Estado estado={r.estado}/>
-          </View>
-          <Boton label="Abrir expediente" outline onPress={() => router.push({ pathname: '/ninos/[id]', params: { id: String(r.id_nino) } })} />
-        </View>)}
-    </Panel>
+    <View style={s.encabezado}>
+      <View style={s.encabezadoTexto}>
+        <Text style={s.title}>Vacunación</Text>
+        <Text style={uiStyles.muted}>{mostrarCatalogo ? 'Administración del catálogo de vacunas.' : 'Registros y estados guardados en PostgreSQL.'}</Text>
+      </View>
+      <Boton label={mostrarCatalogo ? 'Volver a vacunaciones' : 'Gestionar vacunas'}
+        outline={mostrarCatalogo} onPress={() => setMostrarCatalogo((previo) => !previo)} />
+    </View>
+
+    {mostrarCatalogo ? <VacunasCrudSection /> :
+      <Panel title="Consultar vacunaciones" right={<Boton label="Actualizar" outline onPress={() => setRevision((v) => v + 1)} /> }>
+        <Campo label="Buscar niño, expediente o vacuna" value={texto} onChange={setTexto} placeholder="Escriba para filtrar" />
+        <View style={s.filters}>{(['TODOS', 'PENDIENTE', 'APLICADA', 'ATRASADA'] as const).map((opcion) =>
+          <Boton key={opcion} label={opcion} outline={estado !== opcion} onPress={() => setEstado(opcion)} />)}</View>
+        {loading ? <ActivityIndicator color={colors.primary} /> : error ?
+          <><Text style={uiStyles.error}>{error}</Text><Boton label="Reintentar" outline onPress={() => setRevision((v) => v + 1)}/></> :
+          filtrados.length === 0 ? <Text style={uiStyles.muted}>No se encontraron registros.</Text> :
+          filtrados.map((r) => <View style={s.record} key={String(r.id_vacunacion_nino)}>
+            <View style={{ flex: 1, minWidth: 170, gap: 5 }}>
+              <Text style={s.name}>{r.nino?.nombres ?? 'Niño'} {r.nino?.apellidos ?? ''}</Text>
+              <Text style={uiStyles.muted}>Expediente: {r.nino?.codigo_expediente ?? '—'}</Text>
+              <Text style={uiStyles.body}>{r.esquema?.vacuna?.nombre ?? 'Vacuna'} · Dosis {r.esquema?.numero_dosis ?? '—'}</Text>
+              <Text style={uiStyles.muted}>Programada: {fechaSoloDia(r.fecha_programada)} · Aplicada: {fechaSoloDia(r.fecha_aplicacion)}</Text>
+              <Estado estado={r.estado}/>
+            </View>
+            <Boton label="Abrir expediente" outline onPress={() => router.push({ pathname: '/ninos/[id]', params: { id: String(r.id_nino) } })} />
+          </View>)}
+      </Panel>}
   </ScrollView>;
 }
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.canvas },
-  content: { padding: 18, gap: 12 },
+  content: { padding: 18, gap: 14 },
+  encabezado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  encabezadoTexto: { flex: 1, minWidth: 220, gap: 4 },
   title: { fontSize: 23, fontWeight: '800', color: colors.text },
   filters: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   record: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 12,
