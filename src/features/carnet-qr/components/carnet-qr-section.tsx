@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { colors } from '../../../constants/theme';
 import { useAuth } from '../../auth/hooks/use-auth';
@@ -7,6 +7,7 @@ import { Panel, Boton, Campo, Estado, uiStyles } from '../../vacunacion/componen
 import type { Id } from '../../vacunacion/types';
 import { carnetService } from '../services/carnet.service';
 import type { CarnetDigital, EstadoCarnet } from '../types';
+import { CambiarPinCarnet } from './cambiar-pin-carnet';
 
 type Props = { idNino: Id };
 
@@ -14,7 +15,10 @@ export function CarnetQrSection({ idNino }: Props) {
   const { session } = useAuth();
   const puedeAdministrar = !!session?.usuario.roles.some((rol: string) =>
     rol === 'ADMIN_GLOBAL' || rol === 'ADMIN_CENTRO');
+  const puedeCambiarPin = !!session?.usuario.roles.some((rol: string) =>
+    rol === 'ADMIN_GLOBAL' || rol === 'ADMIN_CENTRO' || rol === 'ENFERMERO');
   const [carnet, setCarnet] = useState<CarnetDigital | null>(null);
+  const urlBasePublica = (process.env.EXPO_PUBLIC_CARNET_PUBLIC_URL || (Platform.OS === 'web' && typeof window !== 'undefined' ? `${window.location.origin}/consulta-carnet` : '')).trim().replace(/\/+$/, '');
   // El token nunca se escribe en almacenamiento local ni se imprime en consola.
   const [tokenEmitido, setTokenEmitido] = useState<string | null>(null);
   const [pin, setPin] = useState('');
@@ -45,6 +49,13 @@ export function CarnetQrSection({ idNino }: Props) {
     void cargar();
     return () => { active = false; };
   }, [idNino]);
+
+  // Usar fragmento: el token no se envía al servidor en la petición GET inicial.
+  const esHttps = /^https:\/\//i.test(urlBasePublica);
+  const esLocalDesarrollo = __DEV__ && Platform.OS === 'web' &&
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/consulta-carnet$/i.test(urlBasePublica);
+  const enlaceAcceso = tokenEmitido && (esHttps || esLocalDesarrollo)
+    ? `${urlBasePublica}#token=${tokenEmitido}` : null;
 
   const vencimientoPasado = !!carnet?.fecha_expiracion &&
     new Date(carnet.fecha_expiracion).getTime() <= Date.now();
@@ -123,15 +134,23 @@ export function CarnetQrSection({ idNino }: Props) {
     {carnet && <>
       <Text style={uiStyles.body}>Identificador del carnet: {String(carnet.id_carnet)}</Text>
       <Text style={uiStyles.muted}>Vencimiento: {carnet.fecha_expiracion?.slice(0, 10) ?? 'No establecido'}</Text>
-      {tokenEmitido && carnet.estado === 'ACTIVO' && !vencimientoPasado ? <View style={s.qrBlock}>
-        <QRCode value={tokenEmitido} size={210} backgroundColor="#FFFFFF" color="#111827" />
-        <Text style={s.warning}>QR de acceso sensible. Muéstrelo únicamente a personal autorizado. El PIN no está incluido en el QR.</Text>
-        <Text style={uiStyles.muted}>Tome una copia segura del QR ahora. No se guardará el token en el dispositivo.</Text>
+      {tokenEmitido && !enlaceAcceso ? <Text style={uiStyles.error}>Configure EXPO_PUBLIC_CARNET_PUBLIC_URL con HTTPS (en desarrollo web se acepta localhost). No se mostrará el token como QR sin enlace.</Text> : null}
+      {enlaceAcceso && carnet.estado === 'ACTIVO' && !vencimientoPasado ? <View style={s.qrBlock}>
+        <QRCode value={enlaceAcceso} size={210} backgroundColor="#FFFFFF" color="#111827" />
+        <Text style={s.warning}>Entregue este QR únicamente al padre, madre o tutor autorizado. El PIN se proporciona por separado y no está dentro del QR.</Text>
+        <Text style={uiStyles.muted}>Guarde o imprima este QR ahora. Al escanearlo se abrirá la consulta pública del expediente infantil.</Text>
       </View> : <Text style={uiStyles.muted}>
         El QR original no puede recuperarse del servidor. {puedeAdministrar
           ? 'Puede regenerarlo; el token anterior quedará invalidado.'
           : 'Solicite a un administrador que regenere el token si se necesita otra copia.'}
       </Text>}
+      {puedeCambiarPin ? <View style={s.actions}>
+        <CambiarPinCarnet
+          idCarnet={carnet.id_carnet}
+          disabled={busy}
+          onSuccess={(texto) => { setError(null); setMensaje(texto); }}
+        />
+      </View> : null}
       {puedeAdministrar && <View style={s.actions}>
         {carnet.estado === 'ACTIVO' && !vencimientoPasado ? <Boton label="Bloquear" danger disabled={busy}
           onPress={() => void cambiarEstado('BLOQUEADO')} />
@@ -142,7 +161,7 @@ export function CarnetQrSection({ idNino }: Props) {
       </View>}
     </>}
     <Text style={uiStyles.muted}>
-      El QR contiene un token opaco, no datos médicos. Para validarlo con un escáner se necesita el endpoint de verificación y solicitar PIN cuando corresponda.
+      El QR abre la página de consulta segura. El padre deberá introducir su PIN; no requiere usuario ni contraseña del personal del SCCVI.
     </Text>
     <Modal visible={confirmarRegeneracion} transparent animationType="fade"
       onRequestClose={() => setConfirmarRegeneracion(false)}>
