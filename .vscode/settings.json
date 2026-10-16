@@ -1,7 +1,32 @@
 {
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+
   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
-    "source.organizeImports": "explicit",
-    "source.sortMembers": "explicit"
+    "source.organizeImports": "never",
+    "source.removeUnusedImports": "never",
+    "source.fixAll": "never",
+    "source.fixAll.eslint": "never"
+  },
+
+  "[typescriptreact]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "never",
+      "source.removeUnusedImports": "never",
+      "source.fixAll": "never",
+      "source.fixAll.eslint": "never"
+    }
+  },
+
+  "[typescript]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "never",
+      "source.removeUnusedImports": "never",
+      "source.fixAll": "never",
+      "source.fixAll.eslint": "never"
+    }
   }
 }
